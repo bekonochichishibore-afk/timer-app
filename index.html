@@ -10,6 +10,7 @@ body { font-family:sans-serif; background:#f5f7fa; padding:20px; text-align:cent
 input { padding:8px; font-size:16px; flex:1; }
 button { padding:12px; font-size:18px; margin-top:10px; width:100%; }
 #mainTimer { font-size:64px; margin-top:20px; font-weight:bold; }
+.stopBtn { background:#ff4d4d; color:white; }
 </style>
 </head>
 <body>
@@ -25,6 +26,9 @@ button { padding:12px; font-size:18px; margin-top:10px; width:100%; }
 <script>
 let startTimes = [];
 let audioCtx;
+let prepInterval = null;
+let mainInterval = null;
+let t = 0;
 
 function initAudio(){
   if(!audioCtx){
@@ -42,6 +46,12 @@ function tone(freq, duration){
   gain.gain.setValueAtTime(1, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration/1000);
   osc.stop(audioCtx.currentTime + duration/1000);
+}
+
+function speakNumber(num){
+  const uttr = new SpeechSynthesisUtterance(num.toString());
+  uttr.lang = 'ja-JP';
+  speechSynthesis.speak(uttr);
 }
 
 function addPerson() {
@@ -72,42 +82,55 @@ function calculate() {
     html += `<p>${p.name} → ${startTimes[i]}</p>`;
   });
 
-  html += `<button onclick="startMasterTimer()">全員スタート</button>`;
+  html += `
+    <button onclick="startMasterTimer()">全員スタート</button>
+    <button class="stopBtn" onclick="stopAll()">停止</button>
+  `;
   document.getElementById("startArea").innerHTML = html;
 }
 
 function startMasterTimer() {
+  stopAll();
   initAudio();
+
   let prep = 5;
   const display = document.getElementById("mainTimer");
 
-  let prepTimer = setInterval(() => {
+  prepInterval = setInterval(() => {
     display.textContent = prep;
-    tone(500,120); // カウントダウン音（低音）
+    tone(500,120);
     prep--;
     if (prep < 0) {
-      clearInterval(prepTimer);
-      tone(1500,400); // スタート合図音
+      clearInterval(prepInterval);
+      tone(1500,400);
       runMain();
     }
   }, 1000);
 }
 
 function runMain() {
-  let t = 0;
+  t = 0;
   const display = document.getElementById("mainTimer");
   display.textContent = t;
 
-  setInterval(() => {
+  mainInterval = setInterval(() => {
     t++;
     display.textContent = t;
 
+    speakNumber(t); // 追加：数字読み上げ
+
     startTimes.forEach(s => {
       if (s === t) {
-        tone(900,200); // 個別スタート音（中音）
+        tone(900,200);
       }
     });
   }, 1000);
+}
+
+function stopAll(){
+  if(prepInterval) clearInterval(prepInterval);
+  if(mainInterval) clearInterval(mainInterval);
+  speechSynthesis.cancel();
 }
 
 addPerson();
