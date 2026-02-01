@@ -24,6 +24,25 @@ button { padding:12px; font-size:18px; margin-top:10px; width:100%; }
 
 <script>
 let startTimes = [];
+let audioCtx;
+
+function initAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function tone(freq, duration){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  osc.start();
+  gain.gain.setValueAtTime(1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration/1000);
+  osc.stop(audioCtx.currentTime + duration/1000);
+}
 
 function addPerson() {
   const div = document.createElement("div");
@@ -33,25 +52,6 @@ function addPerson() {
     <input type="number" placeholder="到達時間(秒)">
   `;
   document.getElementById("inputs").appendChild(div);
-}
-
-function speak(text) {
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'ja-JP';
-  speechSynthesis.speak(uttr);
-}
-
-function beep(freq=1000, duration=200) {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.frequency.value = freq;
-  osc.start();
-  gain.gain.setValueAtTime(1, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration/1000);
-  osc.stop(ctx.currentTime + duration/1000);
 }
 
 function calculate() {
@@ -65,14 +65,11 @@ function calculate() {
   });
 
   const maxTime = Math.max(...data.map(p => p.time));
-  startTimes = data.map(p => ({
-    name: p.name,
-    start: Math.round(maxTime - p.time)
-  }));
+  startTimes = data.map(p => Math.round(maxTime - p.time));
 
   let html = "<h2>スタート番号</h2>";
-  startTimes.forEach(p => {
-    html += `<p>${p.name} → ${p.start}</p>`;
+  data.forEach((p,i) => {
+    html += `<p>${p.name} → ${startTimes[i]}</p>`;
   });
 
   html += `<button onclick="startMasterTimer()">全員スタート</button>`;
@@ -80,17 +77,17 @@ function calculate() {
 }
 
 function startMasterTimer() {
+  initAudio();
   let prep = 5;
   const display = document.getElementById("mainTimer");
 
   let prepTimer = setInterval(() => {
     display.textContent = prep;
-    speak(prep.toString());
+    tone(500,120); // カウントダウン音（低音）
     prep--;
     if (prep < 0) {
       clearInterval(prepTimer);
-      speak("スタート");
-      beep(1500,400);
+      tone(1500,400); // スタート合図音
       runMain();
     }
   }, 1000);
@@ -105,10 +102,9 @@ function runMain() {
     t++;
     display.textContent = t;
 
-    startTimes.forEach(p => {
-      if (p.start === t) {
-        speak(p.name + "さん スタート");
-        beep(1200,300);
+    startTimes.forEach(s => {
+      if (s === t) {
+        tone(900,200); // 個別スタート音（中音）
       }
     });
   }, 1000);
