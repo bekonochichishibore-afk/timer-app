@@ -60,3 +60,131 @@ function tone(freq, duration){
 }
 
 function switchMode(m){
+  mode = m;
+  document.getElementById("upTab").classList.toggle("active", m==="up");
+  document.getElementById("downTab").classList.toggle("active", m==="down");
+}
+
+function addPerson() {
+  const div = document.createElement("div");
+  div.className = "person";
+  div.innerHTML = `<input placeholder="名前"><input type="number" placeholder="到達時間(秒)">`;
+  document.getElementById("inputs").appendChild(div);
+}
+
+function calculate() {
+  const people = document.querySelectorAll(".person");
+  if(people.length === 0){
+    alert("参加者を追加してください");
+    return;
+  }
+
+  let data = [];
+  people.forEach(p => {
+    const name = p.children[0].value || "名無し";
+    const time = parseFloat(p.children[1].value);
+    if (!isNaN(time)) data.push({name, time});
+  });
+
+  if(data.length === 0){
+    alert("到達時間を入力してください");
+    return;
+  }
+
+  let html = "<h2>スタート指示</h2>";
+
+  if(mode === "up"){
+    const maxTime = Math.max(...data.map(p => p.time));
+    startTimes = data.map(p => Math.round(maxTime - p.time));
+    endTime = Math.max(...startTimes) + 3;
+    data.forEach((p,i)=> html += `<p>${p.name} → ${startTimes[i]} 秒で出発</p>`);
+
+  } else {
+    const minTime = Math.min(...data.map(p => p.time));
+    downStartTimes = data.map(p => ({ name:p.name, start:Math.round(p.time-minTime) }));
+    const maxStart = Math.max(...downStartTimes.map(p => p.start));
+    endTime = maxStart + 3;
+    html += `<p>カウントダウン秒数 → ${endTime}</p><h3>出発タイミング</h3>`;
+    downStartTimes.forEach(p=> html += `<p>${p.name} → 残り ${p.start} 秒で出発</p>`);
+  }
+
+  html += `<button onclick="startTimer()">開始</button>
+           <button class="stopBtn" onclick="stopAll()">停止</button>`;
+  document.getElementById("startArea").innerHTML = html;
+}
+
+function startTimer(){
+  stopAll();
+  initAudio();
+  const display = document.getElementById("mainTimer");
+
+  if(mode === "up"){
+    let prep = 5;
+    display.textContent = prep;
+
+    prepInterval = setInterval(()=>{
+      tone(500,120);
+      prep--;
+      display.textContent = prep;
+
+      if(prep < 0){
+        clearInterval(prepInterval);
+        tone(1500,300);
+        startUpCount();
+      }
+    },1000);
+
+  } else {
+    t = endTime;
+    display.textContent = t;
+
+    interval = setInterval(()=>{
+      t--;
+      display.textContent = t;
+      tone(700,60);
+
+      downStartTimes.forEach(p=>{
+        if(t===p.start) tone(1000,200);
+      });
+
+      if(t<=0){
+        tone(400,400);
+        stopAll();
+      }
+
+    },1000);
+  }
+}
+
+function startUpCount(){
+  t = 0;
+  const display = document.getElementById("mainTimer");
+  display.textContent = t;
+
+  interval = setInterval(()=>{
+    t++;
+    display.textContent = t;
+    tone(700,60);
+
+    startTimes.forEach(s=>{
+      if(s===t) tone(1000,200);
+    });
+
+    if(t>=endTime){
+      tone(400,400);
+      stopAll();
+    }
+
+  },1000);
+}
+
+function stopAll(){
+  if(interval) clearInterval(interval);
+  if(prepInterval) clearInterval(prepInterval);
+}
+
+// ★ 初期参加者1人追加（重要）
+addPerson();
+</script>
+</body>
+</html>
